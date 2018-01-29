@@ -6,7 +6,7 @@
 
 [![codecov.io](http://codecov.io/github/mfalt/CholmodSolve2.jl/coverage.svg?branch=master)](http://codecov.io/github/mfalt/CholmodSolve2.jl?branch=master)
 
-Package for solving linear systems given an LDLt factorization.
+Package for solving linear systems given an LDLt factorization, with no unnessesary allocations. 
 
 This package supplies a wrapper for the solve2 routine in SuiteSparse/CHOLMOD, callable using `A_ldiv_B!(c, F, b)`. The package keeps the necessary workspace variables in memory to avoid new allocations on every solve.
 

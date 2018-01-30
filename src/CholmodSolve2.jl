@@ -47,7 +47,7 @@ function solve2!(sys::Integer, F::Factor{Tv}, B::Ptr{C_Dense{Tv}})
     return d
 end
 
-function Base.A_ldiv_B!(C::Array{Tv}, F::Factor{Tv}, B::Array{Tv}) where Tv
+function Base.A_ldiv_B!(C::AbstractVecOrMat{Tv}, F::Factor{Tv}, B::AbstractVecOrMat{Tv}) where Tv
     if size(B,1) != size(F,1) || size(C,1) != size(F,1)
         throw(DimensionMismatch("B and C must have same number of rows as F, got size(F)=$(size(F)), size(B)=$(size(B)), size(C)=$(size(C))."))
     end
@@ -58,7 +58,7 @@ function Base.A_ldiv_B!(C::Array{Tv}, F::Factor{Tv}, B::Array{Tv}) where Tv
     DEBUG && println("Julia ensure B: : $(size(B,1)), $(size(B,2))")
     ensure_dense(CHOLMOD_BHandle, size(B,1), size(B,2), size(B,1))
     # Copy B to CHOLMOD input
-    unsafe_copy!(unsafe_load(unsafe_load(CHOLMOD_BHandle)).x, pointer(B), length(B))
+    _copy!(unsafe_load(CHOLMOD_BHandle), B)
     #Try to resize Y to avoid unnessesary allocation in solve2
     if CHOLMOD_YHandle != C_NULL && unsafe_load(CHOLMOD_YHandle) != C_NULL
         Yp = unsafe_load(CHOLMOD_YHandle)
@@ -81,7 +81,7 @@ function Base.A_ldiv_B!(C::Array{Tv}, F::Factor{Tv}, B::Array{Tv}) where Tv
         throw(DimensionMismatch("Solve failed"))
     end
     # Copy the CHOLMOD output to C
-    unsafe_copy!(pointer(C), unsafe_load(unsafe_load(CHOLMOD_XHandle)).x, length(C))
+    _copy!(C, unsafe_load(CHOLMOD_XHandle))
 
     return C
 end
@@ -114,6 +114,41 @@ function ensure_dense(XHandle::Ptr{Ptr{C_Dense{Tv}}}, nrow, ncol, d)
         throw(CHOLMODException("Ensure dense failed in CHOLMOD"))
     end
     return
+end
+
+function _copy!(dest::AbstractArray{Tv}, D::Ptr{C_Dense{Tv}})
+    s = unsafe_load(D)
+    n = s.nrow*s.ncol
+    n <= length(dest) || throw(BoundsError(dest, n))
+    if s.d == s.nrow && isa(dest, Array)
+        unsafe_copy!(pointer(dest), s.x, s.d*s.ncol)
+    else
+        k = 0
+        for j = 1:s.ncol
+            for i = 1:s.nrow
+                dest[k+=1] = unsafe_load(s.x, i + (j - 1)*s.d)
+            end
+        end
+    end
+    dest
+end
+
+# TODO verify correctness when s.d != s.nrow
+function _copy!(D::Ptr{C_Dense{Tv}}, orig::AbstractVecOrMat{Tv})
+    s = unsafe_load(D)
+    n = s.nrow*s.ncol
+    length(orig) <= n || throw(BoundsError(n, orig))
+    if s.d == s.nrow && isa(orig, Array)
+        unsafe_copy!(s.x, pointer(orig), length(orig))
+    else
+        k = 0
+        for j = 1:s.ncol
+            for i = 1:s.nrow
+                unsafe_store!(s.x, orig[k+=1], i + (j - 1)*s.d)
+            end
+        end
+    end
+    D
 end
 
 # For debugging memory use

@@ -55,8 +55,8 @@ val, t, bytes, gctime, memallocs = @timed A_ldiv_B!(x2, F, y2)
 y2 = 2y2
 x2 = similar(y2)
 # Test with views
-x22 = view(x2, 1:size(x2,1), 1:4)
-y22 = view(y2, 1:size(y2,1), 1:4)
+x22 = view(x2, :, 1:4)
+y22 = view(y2, :, 1:4)
 precompile(A_ldiv_B!,typeof.((x22, F, y22)))
 val, t, bytes, gctime, memallocs = @timed A_ldiv_B!(x22, F, y22)
 @test bytes < 400 # should be roughly 900*3*8*8=172800

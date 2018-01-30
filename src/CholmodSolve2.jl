@@ -120,7 +120,7 @@ function _copy!(dest::AbstractArray{Tv}, D::Ptr{C_Dense{Tv}})
     s = unsafe_load(D)
     n = s.nrow*s.ncol
     n <= length(dest) || throw(BoundsError(dest, n))
-    if s.d == s.nrow && isa(dest, Array)
+    if s.d == s.nrow && (isa(dest, Array) || Base.iscontiguous(dest))
         unsafe_copy!(pointer(dest), s.x, s.d*s.ncol)
     else
         k = 0
@@ -138,7 +138,7 @@ function _copy!(D::Ptr{C_Dense{Tv}}, orig::AbstractVecOrMat{Tv})
     s = unsafe_load(D)
     n = s.nrow*s.ncol
     length(orig) <= n || throw(BoundsError(n, orig))
-    if s.d == s.nrow && isa(orig, Array)
+    if s.d == s.nrow && (isa(orig, Array) || Base.iscontiguous(orig))
         unsafe_copy!(s.x, pointer(orig), length(orig))
     else
         k = 0

@@ -1,26 +1,27 @@
+__precompile__()
 module CholmodSolve2
 
 import Base.SparseArrays.CHOLMOD: SuiteSparse_long, Factor,
         C_Dense, C_Sparse, C_Factor, @cholmod_name, Cint, CHOLMOD_A, common,
         CHOLMODException, xtyp
 
-global const DEBUG = false
+const DEBUG = false
 # Only allow Float64 for now
-global const Tv = Float64 # TODO Relax to VTypes
+const Tv = Float64 # TODO Relax to VTypes
 
 # Julia, dont CG these, or we will have problems!!
-CHOLMOD_Bp = Ptr{C_Dense{Tv}}(C_NULL)
-CHOLMOD_Xp = Ptr{C_Dense{Tv}}(C_NULL)
-#CHOLMOD_Xsetp = Ptr{C_Sparse{Tv}}(C_NULL)
-CHOLMOD_Yp = Ptr{C_Dense{Tv}}(C_NULL)
-CHOLMOD_Ep = Ptr{C_Dense{Tv}}(C_NULL)
+const CHOLMOD_ptrs = Vector{Ptr{C_Dense{Tv}}}(4)
 
-# Workspace pointers that CHOLMOD will use. CHOLMOD will take care of ALL allocations
-global const CHOLMOD_BHandle     = convert(Ptr{Ptr{C_Dense{Tv}}},pointer_from_objref(CHOLMOD_Bp))
-global const CHOLMOD_XHandle     = convert(Ptr{Ptr{C_Dense{Tv}}},pointer_from_objref(CHOLMOD_Xp))
-#global const CHOLMOD_Xset_Handle = convert(Ptr{Ptr{C_Sparse{Tv}}},pointer_from_objref(CHOLMOD_Xsetp))
-global const CHOLMOD_YHandle     = convert(Ptr{Ptr{C_Dense{Tv}}},pointer_from_objref(CHOLMOD_Yp))
-global const CHOLMOD_EHandle     = convert(Ptr{Ptr{C_Dense{Tv}}},pointer_from_objref(CHOLMOD_Ep))
+# Needed for precompilation
+function __init__()
+    # Make sure we have 4 NULL pointers allocated that we can reference to
+    map!(_-> Ptr{C_Dense{Tv}}(C_NULL), CHOLMOD_ptrs, 1:4)
+    # Workspace pointers that CHOLMOD will use. CHOLMOD will take care of ALL allocations
+    global const CHOLMOD_BHandle = pointer(CHOLMOD_ptrs,1)
+    global const CHOLMOD_XHandle = pointer(CHOLMOD_ptrs,2)
+    global const CHOLMOD_YHandle = pointer(CHOLMOD_ptrs,3)
+    global const CHOLMOD_EHandle = pointer(CHOLMOD_ptrs,4)
+end
 
 function solve2!(sys::Integer, F::Factor{Tv}, B::Ptr{C_Dense{Tv}})
     if size(F,1) != unsafe_load(B).nrow
